@@ -17,4 +17,3 @@ A service for processing YouTube videos to extract vocals using Demucs.
 
 TODO: Add usage instructions
 
-just starting
