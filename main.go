@@ -6,9 +6,20 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/abhinandpn/UnVocal/setup"
 )
 
 func main() {
+
+	if err := setup.Setup(); err != nil {
+		fmt.Println("❌ Setup failed:")
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println("✅ Setup completed successfully")
+
 	start := time.Now() // ⏱ start time
 
 	input := "/Users/abhinanpn/Desktop/UnVocal/mp4/videoplayback.mp4"
