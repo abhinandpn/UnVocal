@@ -1,4 +1,4 @@
-package setup
+package system
 
 import (
 	"fmt"
@@ -6,57 +6,36 @@ import (
 	"runtime"
 )
 
-// run command and check
-func checkCommand(name string, args ...string) bool {
+func checkCommand(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
-	err := cmd.Run()
-	return err == nil
+	return cmd.Run()
 }
 
 func Setup() error {
-	fmt.Println("=== UnVocal Setup Check ===")
+	fmt.Println("=== UnVocal Runtime Check ===")
 
-	// 1. OS Info
 	fmt.Println("OS:", runtime.GOOS)
 
-	// 2. Check Go
-	if checkCommand("go", "version") {
-		fmt.Println("Go: ✅ Installed")
-	} else {
-		fmt.Println("Go: ❌ Not installed")
+	checks := []struct {
+		Name string
+		Cmd  string
+		Args []string
+	}{
+		{"Go", "go", []string{"version"}},
+		{"Python", "python3", []string{"--version"}},
+		{"pip", "pip3", []string{"--version"}},
+		{"FFmpeg", "ffmpeg", []string{"-version"}},
 	}
 
-	// 3. Check Python
-	if checkCommand("python3", "--version") {
-		fmt.Println("Python: ✅ Installed")
-	} else {
-		fmt.Println("Python: ❌ Not installed")
-		fmt.Println("Install: brew install python@3.11")
+	for _, check := range checks {
+		if err := checkCommand(check.Cmd, check.Args...); err != nil {
+			return fmt.Errorf("%s not installed", check.Name)
+		}
+
+		fmt.Printf("%s: ✅ Installed\n", check.Name)
 	}
 
-	// 4. Check pip
-	if checkCommand("pip3", "--version") {
-		fmt.Println("pip: ✅ Installed")
-	} else {
-		fmt.Println("pip: ❌ Not installed")
-	}
+	fmt.Println("=== Runtime OK ===")
 
-	// 5. Check demucs
-	if checkCommand("python3", "-m", "demucs", "--help") {
-		fmt.Println("Demucs: ✅ Installed")
-	} else {
-		fmt.Println("Demucs: ❌ Not installed")
-		fmt.Println("Install: python3 -m pip install demucs")
-	}
-
-	// 6. Check ffmpeg
-	if checkCommand("ffmpeg", "-version") {
-		fmt.Println("FFmpeg: ✅ Installed")
-	} else {
-		fmt.Println("FFmpeg: ❌ Not installed")
-		fmt.Println("Install: brew install ffmpeg")
-	}
-
-	fmt.Println("=== Done ===")
 	return nil
 }
