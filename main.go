@@ -28,12 +28,16 @@ func main() {
 	if err := setup.Setup(); err != nil {
 		log.Fatalf("❌ Setup failed: %v", err)
 	}
+
 	log.Println("✅ Setup completed successfully")
 
 	http.HandleFunc("/api/separate-audio", handleSeparateAudio)
+	http.HandleFunc("/api/karaoke", HandleKaraoke)
 
 	port := "8080"
+
 	log.Printf("Server listening on :%s", port)
+
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
@@ -148,6 +152,92 @@ func handleSeparateAudio(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "audio/wav")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.wav\"", track))
+
+	http.ServeFile(w, r, targetAudio)
+}
+func HandleKaraoke(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if err := r.ParseMultipartForm(500 << 20); err != nil {
+		http.Error(w, "Error parsing form", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	if header.Size > 500<<20 {
+		http.Error(w, "File too large", http.StatusBadRequest)
+		return
+	}
+
+	jobID := generateID()
+
+	cwd, _ := os.Getwd()
+	tmpInput := filepath.Join(cwd, "tmp_input")
+	tmpOutput := filepath.Join(cwd, "tmp_output", jobID)
+
+	os.MkdirAll(tmpInput, os.ModePerm)
+	os.MkdirAll(tmpOutput, os.ModePerm)
+
+	inputFilePath := filepath.Join(tmpInput, header.Filename)
+
+	out, err := os.Create(inputFilePath)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	io.Copy(out, file)
+	out.Close()
+
+	defer os.Remove(inputFilePath)
+	defer os.RemoveAll(tmpOutput)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+
+	pythonPath := filepath.Join(cwd, "venv", "bin", "python")
+	if runtime.GOOS == "windows" {
+		pythonPath = filepath.Join(cwd, "venv", "Scripts", "python.exe")
+	}
+
+	cmd := exec.CommandContext(
+		ctx,
+		pythonPath,
+		"-m", "demucs",
+		"--two-stems=vocals",
+		"-o", tmpOutput,
+		inputFilePath,
+	)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		http.Error(w, "Error processing audio", http.StatusInternalServerError)
+		return
+	}
+
+	originalName := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
+
+	// 👇 THIS is the key difference
+	targetAudio := filepath.Join(tmpOutput, "htdemucs", originalName, "no_vocals.wav")
+
+	if _, err := os.Stat(targetAudio); os.IsNotExist(err) {
+		http.Error(w, "Processed file not found", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "audio/wav")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"karaoke.wav\"")
 
 	http.ServeFile(w, r, targetAudio)
 }
