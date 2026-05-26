@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/abhinandpn/UnVocal/internal/api/handlers"
 	"github.com/abhinandpn/UnVocal/setup"
 )
 
@@ -32,7 +33,7 @@ func main() {
 	log.Println("✅ Setup completed successfully")
 
 	http.HandleFunc("/api/separate-audio", handleSeparateAudio)
-	http.HandleFunc("/api/karaoke", HandleKaraoke)
+	http.HandleFunc("/api/karaoke", handlers.HandleKaraoke)
 
 	port := "8080"
 
