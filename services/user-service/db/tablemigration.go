@@ -1,0 +1,19 @@
+package db
+
+var CreateUsersTable = `
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    number VARCHAR(20) UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+`
+
+func GetTableQuery() []string {
+	return []string{
+		CreateUsersTable, // Users table creation query
+	}
+
+}

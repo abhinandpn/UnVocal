@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 
+	"github.com/abhinandpn/UnVocal/services/user-service/db"
 	"github.com/joho/godotenv"
 )
 
@@ -11,7 +12,7 @@ type Config struct {
 	Port        string
 }
 
-func Load() Config {
+func LoadConfig() Config {
 	if err := godotenv.Load(); err != nil {
 		panic("Error loading .env file")
 	}
@@ -30,4 +31,10 @@ func Load() Config {
 	}
 
 	return cfg
+}
+
+func TableMigrationQueries() []string {
+	return []string{
+		db.CreateUsersTable, // Users table creation query
+	}
 }
