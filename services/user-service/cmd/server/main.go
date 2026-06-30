@@ -12,18 +12,24 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	// Connect to PostgreSQL
+	// 1. CONNECT DB FIRST
 	if err := db.Connect(cfg.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
 
-	// Create Gin router
+	// 2. NOW DB IS READY
+	err := db.TableMigrate(db.DB)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 3. CREATE ROUTER
 	r := gin.Default()
 
-	// Register routes
+	// 4. REGISTER ROUTES
 	routes.SetupRoutes(r, db.DB)
 
-	// Health check
+	// 5. HEALTH CHECK
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "User Service Running 🚀",
@@ -32,7 +38,7 @@ func main() {
 
 	log.Printf("🚀 Server is running on http://localhost:%s\n", cfg.Port)
 
-	// Start server
+	// 6. START SERVER
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatal(err)
 	}

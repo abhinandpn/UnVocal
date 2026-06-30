@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 
-	"github.com/abhinandpn/UnVocal/services/user-service/db"
 	"github.com/joho/godotenv"
 )
 
@@ -31,10 +30,4 @@ func LoadConfig() Config {
 	}
 
 	return cfg
-}
-
-func TableMigrationQueries() []string {
-	return []string{
-		db.CreateUsersTable, // Users table creation query
-	}
 }

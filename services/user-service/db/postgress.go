@@ -21,7 +21,19 @@ func Connect(databaseURL string) error {
 	if err := DB.Ping(context.Background()); err != nil {
 		fmt.Println("Error pinging PostgreSQL:", err)
 	}
-	log.Println("✅ PostgreSQL connected")
+	log.Println("\n✅ PostgreSQL connected")
 
+	return nil
+}
+func TableMigrate(pool *pgxpool.Pool) error {
+	queries := GetTableQueries()
+
+	for _, query := range queries {
+		if _, err := pool.Exec(context.Background(), query); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("✅ Table migration completed successfully.")
 	return nil
 }

@@ -11,9 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
 );
 `
 
-func GetTableQuery() []string {
+func GetTableQueries() []string {
 	return []string{
-		CreateUsersTable, // Users table creation query
+		CreateUsersTable, // users table
 	}
-
 }
