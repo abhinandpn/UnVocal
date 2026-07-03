@@ -14,9 +14,10 @@ func SetupRoutes(r *gin.Engine, db *pgxpool.Pool) {
 	svc := service.NewUserService(repo)
 	h := handler.NewUserHandler(svc)
 
+	// CRUD
 	user := r.Group("/users")
 	{
-		user.POST("/", h.Register)
+		user.POST("/new", h.Register)
 		user.GET("/:id", h.GetUser)
 		user.PUT("/:id", h.UpdateUser)
 		user.DELETE("/:id", h.DeleteUser)

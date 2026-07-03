@@ -18,26 +18,37 @@ func NewUserHandler(s *service.UserService) *UserHandler {
 
 // Create User
 func (h *UserHandler) Register(c *gin.Context) {
-	var user model.User
+	ctx := c.Request.Context()
 
+	var user model.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.Register(user.Name, user.Email, user.Password, user.Number); err != nil {
+	err := h.service.Register(
+		ctx,
+		user.Name,
+		user.Email,
+		user.Password,
+		user.Number,
+	)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "User created successfully",
+	})
 }
 
 // Get User
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
+	ctx := c.Request.Context()
 
-	user, err := h.service.GetUserByID(id)
+	user, err := h.service.GetUserByID(ctx, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -49,7 +60,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 // Update User
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
-
+	ctx := c.Request.Context()
 	var user model.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -58,7 +69,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	user.ID = id
 
-	if err := h.service.UpdateUser(&user); err != nil {
+	if err := h.service.UpdateUser(ctx, &user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -69,8 +80,9 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 // Delete User
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
+	ctx := c.Request.Context()
 
-	if err := h.service.DeleteUser(id); err != nil {
+	if err := h.service.DeleteUser(ctx, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

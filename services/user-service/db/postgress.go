@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,18 +10,23 @@ import (
 var DB *pgxpool.Pool
 
 func Connect(databaseURL string) error {
-
 	var err error
+
 	DB, err = pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
-		fmt.Println("Error connecting to PostgreSQL:", err)
+		return err
 	}
 
 	if err := DB.Ping(context.Background()); err != nil {
-		fmt.Println("Error pinging PostgreSQL:", err)
+		return err
 	}
-	log.Println("\n✅ PostgreSQL connected")
 
+	// Run migrations
+	if err := TableMigrate(DB); err != nil {
+		return err
+	}
+
+	log.Println("✅ PostgreSQL connected")
 	return nil
 }
 func TableMigrate(pool *pgxpool.Pool) error {
@@ -34,6 +38,7 @@ func TableMigrate(pool *pgxpool.Pool) error {
 		}
 	}
 
-	fmt.Println("✅ Table migration completed successfully.")
+	log.Println("✅ Database table migration completed successfully.")
+
 	return nil
 }

@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/abhinandpn/UnVocal/services/user-service/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,6 +16,8 @@ type UserRepository interface {
 	GetUserByID(id string) (*model.User, error)
 	UpdateUser(user *model.User) error
 	DeleteUser(id string) error
+	GetUserByEmail(email string) (*model.User, error)
+	GetUserByNumber(number string) (*model.User, error)
 }
 
 // userRepository is the concrete implementation of UserRepository
@@ -108,4 +112,65 @@ func (r *userRepository) DeleteUser(id string) error {
 	)
 
 	return err
+}
+
+func (r *userRepository) GetUserByEmail(email string) (*model.User, error) {
+	query := `
+		SELECT id, name, email, number, password
+		FROM users
+		WHERE email = $1
+	`
+
+	user := &model.User{}
+
+	err := r.db.QueryRow(
+		context.Background(),
+		query,
+		email,
+	).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Number,
+		&user.Password,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil // User not found
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *userRepository) GetUserByNumber(number string) (*model.User, error) {
+	query := `
+		SELECT id, name, email, number, password
+		FROM users
+		WHERE number = $1
+	`
+
+	user := &model.User{}
+
+	err := r.db.QueryRow(
+		context.Background(),
+		query,
+		number,
+	).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Number,
+		&user.Password,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return user, nil
 }

@@ -1,5 +1,13 @@
 package db
 
+import (
+	"context"
+	"os"
+	"path/filepath"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
 var CreateUsersTable = `
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
@@ -15,4 +23,24 @@ func GetTableQueries() []string {
 	return []string{
 		CreateUsersTable, // users table
 	}
+}
+
+func RunMigrations(db *pgxpool.Pool) error {
+	files, err := filepath.Glob("migrations/*.sql")
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		query, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+
+		if _, err := db.Exec(context.Background(), string(query)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
