@@ -32,6 +32,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		user.Email,
 		user.Password,
 		user.Number,
+		user.UserCode,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
