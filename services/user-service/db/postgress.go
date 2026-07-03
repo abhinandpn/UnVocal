@@ -21,24 +21,14 @@ func Connect(databaseURL string) error {
 		return err
 	}
 
+	log.Println("✅ PostgreSQL connected")
+
 	// Run migrations
-	if err := TableMigrate(DB); err != nil {
+	if err := RunMigrations(DB); err != nil {
 		return err
 	}
 
-	log.Println("✅ PostgreSQL connected")
-	return nil
-}
-func TableMigrate(pool *pgxpool.Pool) error {
-	queries := GetTableQueries()
-
-	for _, query := range queries {
-		if _, err := pool.Exec(context.Background(), query); err != nil {
-			return err
-		}
-	}
-
-	log.Println("✅ Database table migration completed successfully.")
+	log.Println("✅ Database migrations completed successfully.")
 
 	return nil
 }

@@ -16,9 +16,8 @@ func main() {
 	if err := db.Connect(cfg.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
-
-	// 2. NOW DB IS READY
-	err := db.TableMigrate(db.DB)
+	// 2. RUN MIGRATIONS
+	err := db.RunMigrations(db.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
