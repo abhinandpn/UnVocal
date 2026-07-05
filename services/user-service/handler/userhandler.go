@@ -16,11 +16,23 @@ func NewUserHandler(s *service.UserService) *UserHandler {
 	return &UserHandler{service: s}
 }
 
-// Create User
+// Register godoc
+// @Summary Register a new user
+// @Description Creates a new user account.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user body model.RegisterRequest true "User registration details"
+// @Success 201 {object} map[string]string "User created successfully"
+// @Failure 400 {object} map[string]string "Invalid request payload"
+// @Failure 409 {object} map[string]string "Email or phone number already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /users/new [post]
 func (h *UserHandler) Register(c *gin.Context) {
+
 	ctx := c.Request.Context()
 
-	var user model.User
+	var user model.RegisterRequest
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -32,7 +44,6 @@ func (h *UserHandler) Register(c *gin.Context) {
 		user.Email,
 		user.Password,
 		user.Number,
-		user.UserCode,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

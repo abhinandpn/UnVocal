@@ -3,42 +3,51 @@ package main
 import (
 	"log"
 
+	_ "github.com/abhinandpn/UnVocal/services/user-service/docs"
+
 	"github.com/abhinandpn/UnVocal/services/user-service/config"
 	"github.com/abhinandpn/UnVocal/services/user-service/db"
 	"github.com/abhinandpn/UnVocal/services/user-service/routes"
 	"github.com/gin-gonic/gin"
 )
 
+// @title User Service API - UnVocal
+// @version 1.0
+// @description This is the API documentation for the User Service of the UnVocal application.
+// @termsOfService http://swagger.io/terms/
+// @host localhost:8080
+// @BasePath /
+
 func main() {
+	// Load configuration
 	cfg := config.LoadConfig()
 
-	// 1. CONNECT DB FIRST
+	// Connect to PostgreSQL
 	if err := db.Connect(cfg.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
-	// 2. RUN MIGRATIONS
-	err := db.RunMigrations(db.DB)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	// 3. CREATE ROUTER
-	r := gin.Default()
+	// Create Gin router
+	router := gin.Default()
 
-	// 4. REGISTER ROUTES
-	routes.SetupRoutes(r, db.DB)
+	// Register Swagger
+	routes.SetupSwagger(router)
 
-	// 5. HEALTH CHECK
-	r.GET("/", func(c *gin.Context) {
+	// Register application routes
+	routes.SetupRoutes(router, db.DB)
+
+	// Health check
+	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "User Service Running 🚀",
 		})
 	})
 
-	log.Printf("🚀 Server is running on http://localhost:%s\n", cfg.Port)
+	log.Printf("🚀 Server is running on http://localhost:%s", cfg.Port)
+	log.Printf("📚 Swagger UI: http://localhost:%s/swagger/index.html", cfg.Port)
 
-	// 6. START SERVER
-	if err := r.Run(":" + cfg.Port); err != nil {
+	// Start server
+	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatal(err)
 	}
 }

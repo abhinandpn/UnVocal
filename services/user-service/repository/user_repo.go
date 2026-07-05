@@ -48,6 +48,7 @@ func (r *userRepository) CreateUser(user *model.User) error {
 	if err != nil {
 		return err
 	}
+
 	CreatedTime := time.Now()
 	_, err = r.db.Exec(
 		context.Background(),

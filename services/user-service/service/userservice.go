@@ -18,7 +18,7 @@ func NewUserService(r repository.UserRepository) *UserService {
 	return &UserService{repo: r}
 }
 
-func (s *UserService) Register(ctx context.Context, name, email, password, number, userCode string) error {
+func (s *UserService) Register(ctx context.Context, name, email, password, number string) error {
 
 	// Check if email already exists
 	existingUser, err := s.repo.GetUserByEmail(email)
@@ -36,13 +36,6 @@ func (s *UserService) Register(ctx context.Context, name, email, password, numbe
 	}
 	if existingUser != nil {
 		return fmt.Errorf("user with number %s already exists", number)
-	}
-	existingUser, err = s.repo.GetUserByUserCode(userCode)
-	if err != nil {
-		return fmt.Errorf("failed to check user code: %w", err)
-	}
-	if existingUser != nil {
-		return fmt.Errorf("user with user code %s already exists", userCode)
 	}
 	// TODO: Hash the password before storing it
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

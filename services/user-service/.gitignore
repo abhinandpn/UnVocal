@@ -1,4 +1,27 @@
+# Environment Variables
 env
 .env
-tmp/
+
+# Air (Live Reload)
 .air.toml
+tmp/
+
+# Swagger Generated Files
+# Regenerate using: swag init
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+
+# Go Build Artifacts
+bin/
+*.exe
+*.out
+*.test
+
+# IDE Files
+.vscode/
+.idea/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
