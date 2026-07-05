@@ -55,12 +55,23 @@ func (h *UserHandler) Register(c *gin.Context) {
 	})
 }
 
-// Get User
+// GetUser godoc
+// @Summary Get user by user code
+// @Description Retrieves user details by user code.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param uid path string true "User Code"
+// @Success 200 {object} model.UserResponse "User details"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /users/{uid} [get]
 func (h *UserHandler) GetUser(c *gin.Context) {
-	id := c.Param("id")
+
+	uid := c.Param("uid")
 	ctx := c.Request.Context()
 
-	user, err := h.service.GetUserByID(ctx, id)
+	user, err := h.service.GetUserByUserCode(ctx, uid)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

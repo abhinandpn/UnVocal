@@ -57,8 +57,31 @@ func (s *UserService) Register(ctx context.Context, name, email, password, numbe
 
 	return nil
 }
-func (s *UserService) GetUserByID(ctx context.Context, id string) (*model.User, error) {
-	return s.repo.GetUserByID(id)
+func (s *UserService) GetUserByUserCode(ctx context.Context, userCode string) (*model.UserResponse, error) {
+
+	isDeleted, err := s.repo.IsUserDeleted(userCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if user is deleted: %w", err)
+	}
+	if isDeleted {
+		return nil, fmt.Errorf("user with code %s is deleted", userCode)
+	}
+
+	user := model.UserResponse{}
+	data, err := s.repo.GetUserByUserCode(userCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user by user code: %w", err)
+	}
+	if data == nil {
+		return nil, fmt.Errorf("user with code %s not found", userCode)
+	}
+	user.ID = data.ID
+	user.Name = data.Name
+	user.Email = data.Email
+	user.Number = data.Number
+	user.UserCode = data.UserCode
+
+	return &user, nil
 }
 func (s *UserService) UpdateUser(ctx context.Context, user *model.User) error {
 	return s.repo.UpdateUser(user)

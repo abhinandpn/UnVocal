@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	_ "github.com/abhinandpn/UnVocal/services/user-service/docs"
+	"github.com/abhinandpn/UnVocal/services/user-service/redis"
+	"github.com/abhinandpn/UnVocal/services/user-service/utils"
 
 	"github.com/abhinandpn/UnVocal/services/user-service/config"
 	"github.com/abhinandpn/UnVocal/services/user-service/db"
@@ -26,6 +29,16 @@ func main() {
 	if err := db.Connect(cfg.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
+
+	// Connect to Redis
+	if err := redis.Connect(); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Redis Connected --------------")
+	utils.CheckRedis()
+
+	fmt.Println("--------------------------------")
 
 	// Create Gin router
 	router := gin.Default()
@@ -50,4 +63,5 @@ func main() {
 	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatal(err)
 	}
+
 }

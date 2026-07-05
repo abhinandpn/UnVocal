@@ -13,15 +13,24 @@ import (
 
 // UserRepository defines the interface for user repository operations
 type UserRepository interface {
+
+	// Define the methods for user repository operations
 	CreateUser(user *model.User) error
-	GetUserByID(id string) (*model.User, error)
 	UpdateUser(user *model.User) error
 	DeleteUser(id string) error
+
+	// Get user by different attributes
 	GetUserByEmail(email string) (*model.User, error)
-	GetUserByNumber(number string) (*model.User, error)
+	GetUserByID(id string) (*model.User, error)
 	GetUserByUserCode(userCode string) (*model.User, error)
-	UserCodeExists(ctx context.Context, code string) (bool, error)
+	GetUserByNumber(number string) (*model.User, error)
+
+	// user code generation and existence check
 	GenerateUniqueUserCode(ctx context.Context) (string, error)
+	UserCodeExists(ctx context.Context, code string) (bool, error)
+
+	// Check if a user is deleted
+	IsUserDeleted(userCode string) (bool, error)
 }
 
 // userRepository is the concrete implementation of UserRepository
@@ -250,4 +259,20 @@ func (r *userRepository) GenerateUniqueUserCode(ctx context.Context) (string, er
 		}
 		return userCode, nil
 	}
+}
+
+func (r *userRepository) IsUserDeleted(UserCode string) (bool, error) {
+
+	query := `SELECT deleted_at FROM users WHERE user_code = $1`
+
+	var deletedAt *time.Time
+	err := r.db.QueryRow(context.Background(), query, UserCode).Scan(&deletedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil // User not found
+		}
+		return false, err
+	}
+
+	return deletedAt != nil, nil
 }

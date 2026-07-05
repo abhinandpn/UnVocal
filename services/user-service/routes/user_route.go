@@ -17,9 +17,9 @@ func SetupRoutes(r *gin.Engine, db *pgxpool.Pool) {
 	// CRUD
 	user := r.Group("/users")
 	{
-		user.POST("/new", h.Register)
-		user.GET("/:id", h.GetUser)
-		user.PUT("/:id", h.UpdateUser)
-		user.DELETE("/:id", h.DeleteUser)
+		user.POST("/new", h.Register)      // Create a new user
+		user.GET("/:uid", h.GetUser)       // Get user by user code
+		user.PUT("/:uid", h.UpdateUser)    // Update user by user code
+		user.DELETE("/:uid", h.DeleteUser) // Delete user by user code
 	}
 }
