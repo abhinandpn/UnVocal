@@ -21,5 +21,7 @@ func SetupRoutes(r *gin.Engine, db *pgxpool.Pool) {
 		user.GET("/:uid", h.GetUser)       // Get user by user code
 		user.PUT("/:uid", h.UpdateUser)    // Update user by user code
 		user.DELETE("/:uid", h.DeleteUser) // Delete user by user code
+		user.POST("/login", h.Login)       // User login
+		// user.POST("/logout", h.Logout)     // User logout
 	}
 }

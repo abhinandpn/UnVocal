@@ -20,17 +20,23 @@ type UserRepository interface {
 	DeleteUser(id string) error
 
 	// Get user by different attributes
-	GetUserByEmail(email string) (*model.User, error)
-	GetUserByID(id string) (*model.User, error)
-	GetUserByUserCode(userCode string) (*model.User, error)
-	GetUserByNumber(number string) (*model.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByID(ctx context.Context, id string) (*model.User, error)
+	GetUserByUserCode(ctx context.Context, userCode string) (*model.User, error)
+	GetUserByNumber(ctx context.Context, number string) (*model.User, error)
 
 	// user code generation and existence check
 	GenerateUniqueUserCode(ctx context.Context) (string, error)
 	UserCodeExists(ctx context.Context, code string) (bool, error)
 
 	// Check if a user is deleted
-	IsUserDeleted(userCode string) (bool, error)
+	IsUserDeleted(ctx context.Context, userCode string) (bool, error)
+
+	// Refresh Tokens
+	CreateRefreshToken(ctx context.Context, token *model.RefreshToken) error
+	GetRefreshToken(ctx context.Context, token string) (*model.RefreshToken, error)
+	RevokeRefreshToken(ctx context.Context, token string) error
+	RevokeRefreshTokensByUserCode(ctx context.Context, userCode string) error // optional
 }
 
 // userRepository is the concrete implementation of UserRepository
@@ -73,7 +79,7 @@ func (r *userRepository) CreateUser(user *model.User) error {
 	return err
 }
 
-func (r *userRepository) GetUserByID(id string) (*model.User, error) {
+func (r *userRepository) GetUserByID(ctx context.Context, id string) (*model.User, error) {
 	query := `
 		SELECT id, name, email, number, password, created_at, user_code
 		FROM users
@@ -83,7 +89,7 @@ func (r *userRepository) GetUserByID(id string) (*model.User, error) {
 	user := &model.User{}
 
 	err := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		query,
 		id,
 	).Scan(
@@ -123,18 +129,21 @@ func (r *userRepository) UpdateUser(user *model.User) error {
 }
 
 func (r *userRepository) DeleteUser(id string) error {
-	query := `DELETE FROM users WHERE id = $1`
+
+	time := time.Now()
+	query := `UPDATE users SET deleted_at = $1 WHERE id = $2`
 
 	_, err := r.db.Exec(
 		context.Background(),
 		query,
+		time,
 		id,
 	)
 
 	return err
 }
 
-func (r *userRepository) GetUserByEmail(email string) (*model.User, error) {
+func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	query := `
 		SELECT id, name, email, number, password, user_code
 		FROM users
@@ -166,7 +175,7 @@ func (r *userRepository) GetUserByEmail(email string) (*model.User, error) {
 	return user, nil
 }
 
-func (r *userRepository) GetUserByNumber(number string) (*model.User, error) {
+func (r *userRepository) GetUserByNumber(ctx context.Context, number string) (*model.User, error) {
 	query := `
 		SELECT id, name, email, number, password, user_code
 		FROM users
@@ -197,7 +206,7 @@ func (r *userRepository) GetUserByNumber(number string) (*model.User, error) {
 	return user, nil
 }
 
-func (r *userRepository) GetUserByUserCode(userCode string) (*model.User, error) {
+func (r *userRepository) GetUserByUserCode(ctx context.Context, userCode string) (*model.User, error) {
 	query := `
 		SELECT id, name, email, number, password, user_code
 		FROM users
@@ -207,7 +216,7 @@ func (r *userRepository) GetUserByUserCode(userCode string) (*model.User, error)
 	user := &model.User{}
 
 	err := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		query,
 		userCode,
 	).Scan(
@@ -261,12 +270,12 @@ func (r *userRepository) GenerateUniqueUserCode(ctx context.Context) (string, er
 	}
 }
 
-func (r *userRepository) IsUserDeleted(UserCode string) (bool, error) {
+func (r *userRepository) IsUserDeleted(ctx context.Context, UserCode string) (bool, error) {
 
 	query := `SELECT deleted_at FROM users WHERE user_code = $1`
 
 	var deletedAt *time.Time
-	err := r.db.QueryRow(context.Background(), query, UserCode).Scan(&deletedAt)
+	err := r.db.QueryRow(ctx, query, UserCode).Scan(&deletedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil // User not found
@@ -275,4 +284,92 @@ func (r *userRepository) IsUserDeleted(UserCode string) (bool, error) {
 	}
 
 	return deletedAt != nil, nil
+}
+
+func (r *userRepository) CreateRefreshToken(ctx context.Context, token *model.RefreshToken) error {
+
+	query := `
+		INSERT INTO refresh_tokens (
+			user_code,
+			token,
+			expires_at,
+			created_at
+		)
+		VALUES ($1, $2, $3, $4)
+	`
+
+	_, err := r.db.Exec(
+		ctx,
+		query,
+		token.UserCode,
+		token.Token,
+		token.ExpiresAt,
+		token.CreatedAt,
+	)
+
+	return err
+}
+
+func (r *userRepository) GetRefreshToken(ctx context.Context, token string) (*model.RefreshToken, error) {
+	query := `
+		SELECT
+			id,
+			user_code,
+			token,
+			expires_at,
+			created_at,
+			revoked_at
+		FROM refresh_tokens
+		WHERE token = $1
+		  AND revoked_at IS NULL
+		  AND expires_at > NOW()
+	`
+
+	refreshToken := &model.RefreshToken{}
+
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		token,
+	).Scan(
+		&refreshToken.ID,
+		&refreshToken.UserCode,
+		&refreshToken.Token,
+		&refreshToken.ExpiresAt,
+		&refreshToken.CreatedAt,
+		&refreshToken.RevokedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return refreshToken, nil
+}
+
+func (r *userRepository) RevokeRefreshToken(ctx context.Context, token string) error {
+	query := `
+		UPDATE refresh_tokens
+		SET revoked_at = NOW()
+		WHERE token = $1
+		  AND revoked_at IS NULL
+	`
+
+	_, err := r.db.Exec(ctx, query, token)
+	return err
+}
+
+func (r *userRepository) RevokeRefreshTokensByUserCode(ctx context.Context, userCode string) error {
+	query := `
+		UPDATE refresh_tokens
+		SET revoked_at = NOW()
+		WHERE user_code = $1
+		  AND revoked_at IS NULL
+	`
+
+	_, err := r.db.Exec(ctx, query, userCode)
+	return err
 }

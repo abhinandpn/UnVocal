@@ -82,6 +82,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 // Update User
 func (h *UserHandler) UpdateUser(c *gin.Context) {
+
 	id := c.Param("id")
 	ctx := c.Request.Context()
 	var user model.User
@@ -100,15 +101,57 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
-// Delete User
+// Register godoc
+// @Summary Delete a user
+// @Description Deletes a user account by user code.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param uid path string true "User Code"
+// @Success 200 {object} map[string]string "User deleted successfully"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /users/{uid} [delete]
 func (h *UserHandler) DeleteUser(c *gin.Context) {
-	id := c.Param("id")
+
+	uid := c.Param("uid")
 	ctx := c.Request.Context()
 
-	if err := h.service.DeleteUser(ctx, id); err != nil {
+	if err := h.service.DeleteUser(ctx, uid); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
+// Login godoc
+// @Summary User login
+// @Description Authenticates a user and returns a JWT token.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param loginRequest body model.LoginRequest true "User login details"
+// @Success 200 {object} model.LoginResponse "Login successful"
+// @Failure 400 {object} map[string]string "Invalid request payload"
+// @Failure 401 {object} map[string]string "Invalid credentials"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /users/login [post]
+func (h *UserHandler) Login(c *gin.Context) {
+
+	ctx := c.Request.Context()
+
+	var loginRequest model.LoginRequest
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.service.Login(ctx, loginRequest.Identifier, loginRequest.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
 }

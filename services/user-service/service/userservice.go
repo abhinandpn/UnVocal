@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/abhinandpn/UnVocal/services/user-service/auth"
 	"github.com/abhinandpn/UnVocal/services/user-service/model"
 	"github.com/abhinandpn/UnVocal/services/user-service/repository"
+	"github.com/abhinandpn/UnVocal/services/user-service/utils"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
@@ -21,7 +25,7 @@ func NewUserService(r repository.UserRepository) *UserService {
 func (s *UserService) Register(ctx context.Context, name, email, password, number string) error {
 
 	// Check if email already exists
-	existingUser, err := s.repo.GetUserByEmail(email)
+	existingUser, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("failed to check email: %w", err)
 	}
@@ -30,17 +34,18 @@ func (s *UserService) Register(ctx context.Context, name, email, password, numbe
 	}
 
 	// Check if phone number already exists
-	existingUser, err = s.repo.GetUserByNumber(number)
+	existingUser, err = s.repo.GetUserByNumber(ctx, number)
 	if err != nil {
 		return fmt.Errorf("failed to check number: %w", err)
 	}
 	if existingUser != nil {
 		return fmt.Errorf("user with number %s already exists", number)
 	}
+
 	// TODO: Hash the password before storing it
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return err
 	}
 
 	newUser := &model.User{
@@ -59,7 +64,7 @@ func (s *UserService) Register(ctx context.Context, name, email, password, numbe
 }
 func (s *UserService) GetUserByUserCode(ctx context.Context, userCode string) (*model.UserResponse, error) {
 
-	isDeleted, err := s.repo.IsUserDeleted(userCode)
+	isDeleted, err := s.repo.IsUserDeleted(ctx, userCode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if user is deleted: %w", err)
 	}
@@ -68,7 +73,7 @@ func (s *UserService) GetUserByUserCode(ctx context.Context, userCode string) (*
 	}
 
 	user := model.UserResponse{}
-	data, err := s.repo.GetUserByUserCode(userCode)
+	data, err := s.repo.GetUserByUserCode(ctx, userCode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by user code: %w", err)
 	}
@@ -86,6 +91,101 @@ func (s *UserService) GetUserByUserCode(ctx context.Context, userCode string) (*
 func (s *UserService) UpdateUser(ctx context.Context, user *model.User) error {
 	return s.repo.UpdateUser(user)
 }
-func (s *UserService) DeleteUser(ctx context.Context, id string) error {
-	return s.repo.DeleteUser(id)
+func (s *UserService) DeleteUser(ctx context.Context, userCode string) error {
+
+	user, err := s.repo.GetUserByUserCode(ctx, userCode)
+	if err != nil {
+		return fmt.Errorf("failed to get user by user code: %w", err)
+	}
+	if user == nil {
+		return fmt.Errorf("user with code %s not found", userCode)
+	}
+	isDeleted, err := s.repo.IsUserDeleted(ctx, userCode)
+	if err != nil {
+		return fmt.Errorf("failed to check if user is deleted: %w", err)
+	}
+	if isDeleted {
+		return fmt.Errorf("user with code %s is deleted", userCode)
+	}
+	return s.repo.DeleteUser(user.ID)
+}
+
+func (s *UserService) Login(ctx context.Context, identifier, password string) (*model.LoginResponse, error) {
+	var (
+		user *model.User
+		err  error
+	)
+
+	// Find user by email or user code
+	if strings.Contains(identifier, "@") {
+		user, err = s.repo.GetUserByEmail(ctx, identifier)
+	} else {
+		user, err = s.repo.GetUserByUserCode(ctx, identifier)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, errors.New("invalid email/user code or password")
+	}
+
+	// Verify password
+	if err := utils.ComparePassword(user.Password, password); err != nil {
+		return nil, errors.New("invalid email/user code or password")
+	}
+
+	// Generate Access Token
+	accessToken, err := auth.GenerateAccessToken(user.UserCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate Refresh Token
+	refreshToken, expiresAt, err := auth.GenerateRefreshToken(user.UserCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save Refresh Token
+	err = s.repo.CreateRefreshToken(ctx, &model.RefreshToken{
+		UserCode:  user.UserCode,
+		Token:     refreshToken,
+		ExpiresAt: expiresAt,
+		CreatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build user response
+	userResponse := &model.UserResponse{
+		ID:       user.ID,
+		Name:     user.Name,
+		Email:    user.Email,
+		Number:   user.Number,
+		UserCode: user.UserCode,
+	}
+
+	return &model.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User:         userResponse,
+	}, nil
+}
+
+func (s *UserService) Logout(ctx context.Context, userCode string) error {
+	// Check if user exists
+	user, err := s.repo.GetUserByUserCode(ctx, userCode)
+	if err != nil {
+		return fmt.Errorf("failed to get user by user code: %w", err)
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+	// Invalidate the token (implementation depends on your token management strategy)
+	// For example, you might store invalidated tokens in a database or cache.
+	// Here, we'll just return nil to indicate success.
+	return nil
 }
