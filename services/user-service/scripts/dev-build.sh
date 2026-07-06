@@ -27,10 +27,10 @@ command -v swag >/dev/null 2>&1 || {
     exit 1
 }
 
-echo
-echo "🧹 Formatting Go code..."
-go fmt ./...
-echo "✅ Formatting completed."
+# echo
+# echo "🧹 Formatting Go code..."
+# go fmt ./...
+# echo "✅ Formatting completed."
 
 # Uncomment if you want to run it on every save.
 # Note: It can slow down hot reload.
