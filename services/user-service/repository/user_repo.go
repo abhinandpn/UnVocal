@@ -373,3 +373,4 @@ func (r *userRepository) RevokeRefreshTokensByUserCode(ctx context.Context, user
 	_, err := r.db.Exec(ctx, query, userCode)
 	return err
 }
+

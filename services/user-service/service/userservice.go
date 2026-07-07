@@ -88,9 +88,7 @@ func (s *UserService) GetUserByUserCode(ctx context.Context, userCode string) (*
 
 	return &user, nil
 }
-func (s *UserService) UpdateUser(ctx context.Context, user *model.User) error {
-	return s.repo.UpdateUser(user)
-}
+
 func (s *UserService) DeleteUser(ctx context.Context, userCode string) error {
 
 	user, err := s.repo.GetUserByUserCode(ctx, userCode)
@@ -189,3 +187,35 @@ func (s *UserService) Logout(ctx context.Context, userCode string) error {
 	// Here, we'll just return nil to indicate success.
 	return nil
 }
+func (s *UserService) UpdateUser(ctx context.Context, user *model.User) error {
+	return s.repo.UpdateUser(user)
+}
+func (s *UserService) UserProfile(ctx context.Context, userCode string) (*model.UserResponse, error) {
+
+	user, err := s.repo.GetUserByUserCode(ctx, userCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user by user code: %w", err)
+	}
+	if user == nil {
+		return nil, fmt.Errorf("user with code %s not found", userCode)
+	}
+
+	isDeleted, err := s.repo.IsUserDeleted(ctx, userCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if user is deleted: %w", err)
+	}
+	if isDeleted {
+		return nil, fmt.Errorf("user with code %s is deleted", userCode)
+	}
+
+	userResponse := &model.UserResponse{
+		ID:       user.ID,
+		Name:     user.Name,
+		Email:    user.Email,
+		Number:   user.Number,
+		UserCode: user.UserCode,
+	}
+
+	return userResponse, nil
+}
+

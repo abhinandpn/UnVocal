@@ -80,27 +80,6 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// Update User
-func (h *UserHandler) UpdateUser(c *gin.Context) {
-
-	id := c.Param("id")
-	ctx := c.Request.Context()
-	var user model.User
-	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	user.ID = id
-
-	if err := h.service.UpdateUser(ctx, &user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
-}
-
 // Register godoc
 // @Summary Delete a user
 // @Description Deletes a user account by user code.
@@ -155,3 +134,68 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
+
+// Update User
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+
+	id := c.Param("id")
+	ctx := c.Request.Context()
+	var user model.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user.ID = id
+
+	if err := h.service.UpdateUser(ctx, &user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
+}
+
+// UserProfile godoc
+// @Summary Get user profile
+// @Description Get the authenticated user's profile.
+// @Tags Users
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} model.UserResponse
+// @Failure 401 {object} map[string]string
+// @Router /users/profile [get]
+func (h *UserHandler) UserProfile(c *gin.Context) {
+
+	ctx := c.Request.Context()
+
+	// Get user_code from JWT middleware
+	userCode, exists := c.Get("user_code")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	// Type assertion
+	uc, ok := userCode.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid user information",
+		})
+		return
+	}
+
+	// Get user profile
+	user, err := h.service.UserProfile(ctx, uc)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+

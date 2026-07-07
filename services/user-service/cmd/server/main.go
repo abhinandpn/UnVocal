@@ -21,6 +21,9 @@ import (
 // @host localhost:8080
 // @BasePath /
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()

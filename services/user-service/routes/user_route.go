@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/abhinandpn/UnVocal/services/user-service/handler"
+	"github.com/abhinandpn/UnVocal/services/user-service/middleware"
 	"github.com/abhinandpn/UnVocal/services/user-service/repository"
 	"github.com/abhinandpn/UnVocal/services/user-service/service"
 	"github.com/gin-gonic/gin"
@@ -14,14 +15,23 @@ func SetupRoutes(r *gin.Engine, db *pgxpool.Pool) {
 	svc := service.NewUserService(repo)
 	h := handler.NewUserHandler(svc)
 
-	// CRUD
+	// Public routes
 	user := r.Group("/users")
 	{
-		user.POST("/new", h.Register)      // Create a new user
-		user.GET("/:uid", h.GetUser)       // Get user by user code
-		user.PUT("/:uid", h.UpdateUser)    // Update user by user code
-		user.DELETE("/:uid", h.DeleteUser) // Delete user by user code
-		user.POST("/login", h.Login)       // User login
-		// user.POST("/logout", h.Logout)     // User logout
+		user.POST("/new", h.Register)
+		user.POST("/login", h.Login)
 	}
+
+	// Protected routes
+	protected := r.Group("/users")
+	protected.Use(middleware.JWTAuth())
+	{
+		protected.GET("/profile", h.UserProfile)
+		protected.PUT("/:uid", h.UpdateUser)
+		protected.DELETE("/:uid", h.DeleteUser)
+		// protected.POST("/logout", h.Logout)
+	}
+
+	// Public route
+	r.GET("/users/:uid", h.GetUser)
 }

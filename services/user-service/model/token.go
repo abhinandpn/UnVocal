@@ -10,3 +10,6 @@ type RefreshToken struct {
 	CreatedAt time.Time  `gorm:"column:created_at"`
 	RevokedAt *time.Time `gorm:"column:revoked_at"`
 }
+type RefreshTokenRequest struct {
+	Token string `json:"token" binding:"required"`
+}
