@@ -219,3 +219,78 @@ func (s *UserService) UserProfile(ctx context.Context, userCode string) (*model.
 	return userResponse, nil
 }
 
+
+func (s *UserService) RefreshToken(ctx context.Context,tokenString string,) (*model.LoginResponse, error) {
+
+	// Validate JWT using JWT_REFRESH_SECRET
+	claims, err := auth.ValidateRefreshToken(tokenString)
+	if err != nil {
+		return nil, errors.New("invalid or expired refresh token")
+	}
+
+	// Check that token exists, is not revoked, and is not expired
+	storedToken, err := s.repo.GetRefreshToken(ctx, tokenString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check refresh token: %w", err)
+	}
+	if storedToken == nil {
+		return nil, errors.New("refresh token is invalid, expired, or revoked")
+	}
+
+	if storedToken.UserCode != claims.UserCode {
+		return nil, errors.New("refresh token does not belong to this user")
+	}
+
+	user, err := s.repo.GetUserByUserCode(ctx, claims.UserCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	isDeleted, err := s.repo.IsUserDeleted(ctx, claims.UserCode)
+	if err != nil {
+		return nil, err
+	}
+	if isDeleted {
+		return nil, errors.New("user account is deleted")
+	}
+
+	// Revoke the old refresh token (token rotation)
+	if err := s.repo.RevokeRefreshToken(ctx, tokenString); err != nil {
+		return nil, fmt.Errorf("failed to revoke old refresh token: %w", err)
+	}
+
+	newAccessToken, err := auth.GenerateAccessToken(user.UserCode)
+	if err != nil {
+		return nil, err
+	}
+
+	newRefreshToken, expiresAt, err :=
+		auth.GenerateRefreshToken(user.UserCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.CreateRefreshToken(ctx, &model.RefreshToken{
+		UserCode:  user.UserCode,
+		Token:     newRefreshToken,
+		ExpiresAt: expiresAt,
+		CreatedAt: time.Now().UTC(),
+	}); err != nil {
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
+	}
+
+	return &model.LoginResponse{
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken,
+		User: &model.UserResponse{
+			ID:       user.ID,
+			Name:     user.Name,
+			Email:    user.Email,
+			Number:   user.Number,
+			UserCode: user.UserCode,
+		},
+	}, nil
+}

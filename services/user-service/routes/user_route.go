@@ -10,28 +10,26 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, db *pgxpool.Pool) {
-
 	repo := repository.NewUserRepository(db)
 	svc := service.NewUserService(repo)
 	h := handler.NewUserHandler(svc)
 
 	// Public routes
-	user := r.Group("/users")
+	users := r.Group("/users")
 	{
-		user.POST("/new", h.Register)
-		user.POST("/login", h.Login)
+		users.POST("/new", h.Register)
+		users.POST("/login", h.Login)
+		users.POST("/refresh", h.Refresh)
 	}
 
-	// Protected routes
+	// Access-token-protected routes
 	protected := r.Group("/users")
 	protected.Use(middleware.JWTAuth())
 	{
 		protected.GET("/profile", h.UserProfile)
-		protected.PUT("/:uid", h.UpdateUser)
 		protected.DELETE("/:uid", h.DeleteUser)
-		// protected.POST("/logout", h.Logout)
 	}
 
-	// Public route
+	// Consider protecting or removing this route later
 	r.GET("/users/:uid", h.GetUser)
 }

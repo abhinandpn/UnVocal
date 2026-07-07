@@ -6,6 +6,7 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 const (
@@ -21,6 +22,7 @@ func generateToken(userCode, secret string, expiry time.Duration) (string, time.
 	claims := Claims{
 		UserCode: userCode,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(), // Unique JWT ID (jti)
 			Subject:   userCode,
 			Issuer:    Issuer,
 			IssuedAt:  jwt.NewNumericDate(now),

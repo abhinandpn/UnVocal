@@ -10,7 +10,8 @@ import (
 
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
+
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "authorization header is required",
@@ -18,21 +19,22 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		const bearerPrefix = "Bearer "
+		parts := strings.Fields(authHeader)
 
-		if !strings.HasPrefix(authHeader, bearerPrefix) {
+		if len(parts) != 2 ||
+			!strings.EqualFold(parts[0], "Bearer") ||
+			parts[1] == "" {
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid authorization header",
+				"error": "use Authorization: Bearer <access_token>",
 			})
 			return
 		}
 
-		token := strings.TrimPrefix(authHeader, bearerPrefix)
-
-		claims, err := auth.ValidateAccessToken(token)
+		claims, err := auth.ValidateAccessToken(parts[1])
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid or expired token",
+				"error": "invalid or expired access token",
 			})
 			return
 		}

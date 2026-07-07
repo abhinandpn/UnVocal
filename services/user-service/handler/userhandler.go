@@ -135,6 +135,45 @@ func (h *UserHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// UserProfile godoc
+// @Summary Get user profile
+// @Description Get the authenticated user's profile.
+// @Tags Users
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} model.UserResponse
+// @Failure 401 {object} map[string]string
+// @Router /users/profile [get]
+func (h *UserHandler) UserProfile(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	userCode, exists := c.Get("user_code")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	uc, ok := userCode.(string)
+	if !ok || uc == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid user information",
+		})
+		return
+	}
+
+	user, err := h.service.UserProfile(ctx, uc)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
 // Update User
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 
@@ -156,46 +195,36 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
-// UserProfile godoc
-// @Summary Get user profile
-// @Description Get the authenticated user's profile.
-// @Tags Users
-// @Security BearerAuth
+// Refresh godoc
+// @Summary Refresh access token
+// @Description Creates new access and refresh tokens using a valid refresh token.
+// @Tags Authentication
+// @Accept json
 // @Produce json
-// @Success 200 {object} model.UserResponse
+// @Param request body model.RefreshTokenRequest true "Refresh token"
+// @Success 200 {object} model.LoginResponse
+// @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
-// @Router /users/profile [get]
-func (h *UserHandler) UserProfile(c *gin.Context) {
-
+// @Router /users/refresh [post]
+func (h *UserHandler) Refresh(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get user_code from JWT middleware
-	userCode, exists := c.Get("user_code")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
+	var request model.RefreshTokenRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "refresh token is required",
 		})
 		return
 	}
 
-	// Type assertion
-	uc, ok := userCode.(string)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid user information",
-		})
-		return
-	}
-
-	// Get user profile
-	user, err := h.service.UserProfile(ctx, uc)
+	response, err := h.service.RefreshToken(ctx, request.Token)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, response)
 }
-
